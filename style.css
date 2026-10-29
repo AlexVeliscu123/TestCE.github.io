@@ -1,0 +1,92 @@
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --ink: #17212b;
+  --muted: #5b6773;
+  --line: #cfd6dd;
+  --sign: #0a4c8c;      /* azul de señal informativa */
+  --sign-ink: #ffffff;
+  --ok: #1b7a3d;
+  --ok-bg: #e2f4e8;
+  --bad: #b3261e;
+  --bad-bg: #fbe6e4;
+  --stripe: #f2b705;    /* ámbar de balizamiento */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11171d; --surface: #1a232c; --ink: #e8edf2; --muted: #9aa7b4;
+    --line: #2c3946; --sign: #5aa2e6; --sign-ink: #08131f;
+    --ok: #62c985; --ok-bg: #153423; --bad: #ff8a80; --bad-bg: #3b1b19;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 18px; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+.top {
+  background: var(--sign); padding: 0.9rem 1.2rem;
+  border-bottom: 6px solid var(--stripe);
+}
+.brand { color: var(--sign-ink); font-weight: 700; font-size: 1.15rem; text-decoration: none; }
+main { max-width: 760px; margin: 0 auto; padding: 1.4rem 1rem 3rem; }
+h1 { font-size: 1.6rem; margin: 0.2rem 0 0.4rem; }
+.lead { color: var(--muted); margin: 0 0 1.4rem; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; }
+.tile {
+  background: var(--surface); border: 2px solid var(--line); border-radius: 10px;
+  padding: 0.9rem; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  display: flex; flex-direction: column; gap: 0.2rem;
+}
+.tile strong { font-size: 1.05rem; }
+.tile small { color: var(--muted); }
+.tile:hover:not(:disabled) { border-color: var(--sign); }
+.tile:disabled { opacity: 0.5; cursor: not-allowed; }
+.tile.done { border-color: var(--ok); }
+:focus-visible { outline: 3px solid var(--stripe); outline-offset: 2px; }
+
+.progress { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin: 0.6rem 0 1.2rem; }
+.progress i { display: block; height: 100%; background: var(--sign); transition: width 0.25s; }
+.meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.9rem; }
+
+.question { font-size: 1.2rem; font-weight: 700; margin: 0 0 1rem; max-width: 70ch; }
+.img-missing { background: var(--surface); border: 2px dashed var(--line); border-radius: 8px; padding: 0.8rem; color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+.q-img { max-width: 220px; display: block; margin-bottom: 1rem; }
+
+.opts { display: grid; gap: 0.6rem; }
+.opt {
+  display: flex; gap: 0.8rem; align-items: flex-start; text-align: left;
+  background: var(--surface); border: 2px solid var(--line); border-radius: 10px;
+  padding: 0.8rem 0.9rem; font: inherit; color: inherit; cursor: pointer; width: 100%;
+}
+.opt .letter {
+  flex: none; width: 1.8rem; height: 1.8rem; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--line);
+  display: grid; place-items: center; font-weight: 700; font-size: 0.9rem;
+}
+.opt:hover:not(:disabled) { border-color: var(--sign); }
+.opt:disabled { cursor: default; }
+.opt.correct { border-color: var(--ok); background: var(--ok-bg); }
+.opt.correct .letter { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.opt.wrong .letter { background: var(--bad); border-color: var(--bad); color: var(--bg); }
+
+.btn {
+  background: var(--sign); color: var(--sign-ink); border: 0; border-radius: 10px;
+  padding: 0.75rem 1.4rem; font: inherit; font-weight: 700; cursor: pointer; margin-top: 1.2rem;
+}
+.btn.ghost { background: transparent; color: var(--sign); border: 2px solid var(--sign); margin-left: 0.6rem; }
+
+.score { background: var(--surface); border: 2px solid var(--line); border-radius: 12px; padding: 1.2rem; margin-bottom: 1.2rem; }
+.score .big { font-size: 2.4rem; font-weight: 700; line-height: 1.1; }
+.score.pass { border-color: var(--ok); }
+.score.fail { border-color: var(--bad); }
+.review { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem; margin-bottom: 0.8rem; }
+.review p { margin: 0.2rem 0; }
+.review .tu { color: var(--bad); }
+.review .ok { color: var(--ok); }
+
+@media (prefers-reduced-motion: reduce) { .progress i { transition: none; } }
