@@ -50,10 +50,10 @@ function showHome() {
         cls = fallos <= MAX_FALLOS ? "pass" : "fail";
         info = `Mejor: ${fallos} ${fallos === 1 ? "fallo" : "fallos"}`;
       }
-      tiles += `<button class="tile ${cls}" data-id="${id}">
+      tiles += `<button class="tile ${cls}" data-id="${id}" style="--i:${id}">
         <strong>Test ${id}</strong><small>${info}</small></button>`;
     } else {
-      tiles += `<button class="tile" disabled><strong>Test ${id}</strong><small>Próximamente</small></button>`;
+      tiles += `<button class="tile" disabled style="--i:${id}"><strong>Test ${id}</strong><small>Próximamente</small></button>`;
     }
   }
   app.innerHTML = `
@@ -107,11 +107,65 @@ function attachImage(testId, idx, custom) {
   img.src = candidates[0];
 }
 
+/* ---------- Navegación ---------- */
+// Cambia de pregunta SIN mover el scroll (te quedas donde estás en la pantalla)
+function goTo(state, n) {
+  state.dir = n > state.i ? "fwd" : n < state.i ? "back" : null;
+  state.i = n;
+  showQuestion(state);
+}
+// Siguiente pregunta sin contestar (da la vuelta al final). -1 si ya están todas.
+function nextPending(state, from) {
+  const total = state.test.preguntas.length;
+  for (let k = 1; k < total; k++) {
+    const n = (from + k) % total;
+    if (state.answers[n] == null) return n;
+  }
+  return -1;
+}
+function finishTest(state) {
+  const total = state.test.preguntas.length;
+  const sin = total - state.answers.filter(a => a != null).length;
+  if (sin > 0 && !confirm(`Te quedan ${sin} ${sin === 1 ? "pregunta" : "preguntas"} sin contestar (cuentan como fallo). ¿Finalizar igualmente?`)) return;
+  showResults(state);
+}
+
 /* ---------- Pregunta ---------- */
 function countFallos(state) {
   let f = 0;
   state.answers.forEach((a, i) => { if (a != null && a !== state.test.preguntas[i][4]) f++; });
   return f;
+}
+function pillInfo(state) {
+  const total = state.test.preguntas.length;
+  if (state.mode === "examen") {
+    return { text: `Contestadas ${state.answers.filter(a => a != null).length}/${total}`, warn: false };
+  }
+  const f = countFallos(state);
+  return { text: `Fallos: ${f}`, warn: f > MAX_FALLOS };
+}
+function updatePill(state) {
+  const pill = app.querySelector(".pill.live");
+  if (!pill) return;
+  const p = pillInfo(state);
+  pill.textContent = p.text;
+  pill.classList.toggle("warn", p.warn);
+}
+function navClass(state, n) {
+  const a = state.answers[n];
+  const cls = [];
+  if (a != null) {
+    if (state.mode === "examen") cls.push("answered");
+    else cls.push(a === state.test.preguntas[n][4] ? "ok" : "bad");
+  }
+  if (n === state.i) cls.push("current");
+  return cls.join(" ");
+}
+function updateNav(state) {
+  app.querySelectorAll(".nav button").forEach((b, n) => { b.className = navClass(state, n); });
+  const done = state.answers.filter(a => a != null).length;
+  const bar = app.querySelector(".progress i");
+  if (bar) bar.style.width = `${(done / state.test.preguntas.length) * 100}%`;
 }
 
 function showQuestion(state) {
@@ -119,27 +173,28 @@ function showQuestion(state) {
   const { test, i, mode } = state;
   const q = test.preguntas[i];
   const total = test.preguntas.length;
-  const last = i === total - 1;
   const exam = mode === "examen";
-  const answeredCount = state.answers.filter(a => a != null).length;
-  const fallosNow = countFallos(state);
-  const live = exam
-    ? `<span class="pill live">Contestadas ${answeredCount}/${total}</span>`
-    : `<span class="pill live ${fallosNow > MAX_FALLOS ? "warn" : ""}">Fallos: ${fallosNow}</span>`;
+  const pill = pillInfo(state);
+  const done = state.answers.filter(a => a != null).length;
 
-  const navHtml = exam ? `
+  const navHtml = `
     <p class="nav-title">Ir a una pregunta:</p>
     <div class="nav">${test.preguntas.map((_, n) =>
-      `<button data-go="${n}" class="${n === i ? "current" : state.answers[n] != null ? "answered" : ""}" aria-label="Pregunta ${n + 1}">${n + 1}</button>`
-    ).join("")}</div>` : "";
+      `<button data-go="${n}" class="${navClass(state, n)}" aria-label="Pregunta ${n + 1}">${n + 1}</button>`
+    ).join("")}</div>`;
+
+  // Animación distinta según el movimiento: entrar, ir adelante o ir atrás
+  const anim = state.dir === "fwd" ? "to-next" : state.dir === "back" ? "to-prev" : "enter";
+  state.dir = null;
 
   app.innerHTML = `
+    <div class="qwrap ${anim}">
     <div class="meta">
       <span><span class="pill">${exam ? "Examen" : "Estudio"}</span> ${test.titulo}</span>
-      ${live}
+      <span class="pill live ${pill.warn ? "warn" : ""}">${pill.text}</span>
       <span>Pregunta ${i + 1} de ${total}</span>
     </div>
-    <div class="progress"><i style="width:${((i + (state.answers[i] != null ? 1 : 0)) / total) * 100}%"></i></div>
+    <div class="progress"><i style="width:${(done / total) * 100}%"></i></div>
     <div class="card">
       <p class="question">${q[0]}</p>
       <div id="q-img"></div>
@@ -149,75 +204,77 @@ function showQuestion(state) {
       </div>
       <div id="feedback"></div>
     </div>
+    </div>
     <div class="actions">
-      ${exam ? `<button class="btn ghost" id="prev" ${i === 0 ? "disabled" : ""}>Anterior</button>
-        <button class="btn ghost" id="skip" ${last ? "disabled" : ""}>Siguiente</button>
-        <button class="btn finish" id="finish">Finalizar examen</button>`
-        : `<button class="btn" id="next" hidden></button>`}
+      <button class="btn ghost" id="prev" ${i === 0 ? "disabled" : ""}>Anterior</button>
+      <button class="btn ghost" id="skip" ${i === total - 1 ? "disabled" : ""}>Siguiente</button>
+      <button class="btn finish" id="finish">${exam ? "Finalizar examen" : "Finalizar test"}</button>
     </div>
     ${navHtml}`;
 
   const buttons = app.querySelectorAll(".opt");
   attachImage(test.id, i, q[5]);
 
+  // Navegación libre (igual en los dos modos)
+  document.getElementById("prev").addEventListener("click", () => goTo(state, i - 1));
+  document.getElementById("skip").addEventListener("click", () => goTo(state, i + 1));
+  document.getElementById("finish").addEventListener("click", () => finishTest(state));
+  app.querySelectorAll(".nav button").forEach(b =>
+    b.addEventListener("click", () => goTo(state, Number(b.dataset.go))));
+
+  const prevAnswer = state.answers[i];
+
   if (exam) {
-    // Marca la respuesta ya elegida (se puede cambiar antes de finalizar)
-    if (state.answers[i] != null) {
-      buttons.forEach(x => { if (Number(x.dataset.k) === state.answers[i]) x.classList.add("selected"); });
+    // Examen: sin pistas; la respuesta se puede cambiar hasta finalizar
+    if (prevAnswer != null) {
+      buttons.forEach(x => { if (Number(x.dataset.k) === prevAnswer) x.classList.add("selected"); });
     }
     buttons.forEach(b => b.addEventListener("click", () => {
+      const first = state.answers[i] == null;
       state.answers[i] = Number(b.dataset.k);
       buttons.forEach(x => x.classList.toggle("selected", x === b));
-      if (!last) {
+      updatePill(state);
+      updateNav(state);
+      if (!first) return; // si solo cambias una respuesta, te quedas aquí
+      const n = nextPending(state, i);
+      if (n >= 0) {
         buttons.forEach(x => (x.disabled = true));
-        timer = setTimeout(() => { state.i++; showQuestion(state); window.scrollTo(0, 0); }, 280);
+        timer = setTimeout(() => goTo(state, n), 280);
       } else {
-        // Última pregunta: se queda para que pulses Finalizar
-        document.getElementById("finish").focus();
-        updateNavMark(state);
+        document.getElementById("finish").focus(); // ya están todas contestadas
       }
-    }));
-    document.getElementById("prev").addEventListener("click", () => { state.i--; showQuestion(state); window.scrollTo(0, 0); });
-    document.getElementById("skip").addEventListener("click", () => { state.i++; showQuestion(state); window.scrollTo(0, 0); });
-    document.getElementById("finish").addEventListener("click", () => {
-      const sin = total - state.answers.filter(a => a != null).length;
-      if (sin > 0 && !confirm(`Te quedan ${sin} preguntas sin contestar (cuentan como fallo). ¿Finalizar igualmente?`)) return;
-      showResults(state);
-    });
-    app.querySelectorAll(".nav button").forEach(b => b.addEventListener("click", () => {
-      state.i = Number(b.dataset.go); showQuestion(state); window.scrollTo(0, 0);
     }));
     return;
   }
 
-  // Modo estudio: respuesta al instante y avance automático
-  buttons.forEach(b => b.addEventListener("click", () => {
-    const k = Number(b.dataset.k);
-    state.answers[i] = k;
+  // Estudio: resultado al instante
+  const showFeedback = k => {
     const ok = k === q[4];
     buttons.forEach(x => {
       x.disabled = true;
       if (Number(x.dataset.k) === q[4]) x.classList.add("correct");
     });
-    if (!ok) b.classList.add("wrong");
+    if (!ok) buttons[k].classList.add("wrong");
     document.getElementById("feedback").innerHTML = ok
       ? `<p class="feedback ok">¡Correcto!</p>`
       : `<p class="feedback ko">Incorrecto. La respuesta correcta es la ${LETTERS[q[4]]}).</p>`;
-    const next = document.getElementById("next");
-    next.hidden = false;
-    next.textContent = last ? "Ver resultado" : "Siguiente ahora";
-    next.focus();
-    const go = () => { clearTimer(); if (last) showResults(state); else { state.i++; showQuestion(state); window.scrollTo(0, 0); } };
-    next.addEventListener("click", go);
-    timer = setTimeout(go, ok ? 1200 : 2800);
-  }));
-}
+    return ok;
+  };
 
-function updateNavMark(state) {
-  const nb = app.querySelectorAll(".nav button")[state.i];
-  if (nb) nb.classList.add("answered");
-  const pill = app.querySelector(".pill.live");
-  if (pill) pill.textContent = `Contestadas ${state.answers.filter(a => a != null).length}/${state.test.preguntas.length}`;
+  if (prevAnswer != null) { showFeedback(prevAnswer); return; } // ya contestada: solo repaso
+
+  buttons.forEach(b => b.addEventListener("click", () => {
+    const k = Number(b.dataset.k);
+    state.answers[i] = k;
+    const ok = showFeedback(k);
+    updatePill(state);
+    updateNav(state);
+    // Avance automático a la siguiente sin contestar; si no queda ninguna, resultados
+    timer = setTimeout(() => {
+      const n = nextPending(state, i);
+      if (n < 0) showResults(state); else goTo(state, n);
+    }, ok ? 1200 : 2800);
+  }));
 }
 
 /* ---------- Resultados ---------- */
@@ -259,3 +316,12 @@ function showResults(state) {
 document.getElementById("home-link").addEventListener("click", e => { e.preventDefault(); showHome(); });
 document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
 showHome();
+
+/* ---------- Pantalla de bienvenida ---------- */
+(function () {
+  const splash = document.getElementById("splash");
+  if (!splash) return;
+  const quitar = () => { splash.remove(); document.body.classList.add("ready"); };
+  splash.addEventListener("animationend", e => { if (e.animationName === "splash-out") quitar(); });
+  setTimeout(quitar, 2600); // por si acaso
+})();
