@@ -3,10 +3,33 @@ const LETTERS = ["a", "b", "c"];
 const STORE_KEY = "tests-ce-resultados";
 const THEME_KEY = "tests-ce-tema";
 const MODE_KEY = "tests-ce-modo";
+const FAILS_KEY = "tests-ce-fallos";
+const EXAM_MINUTES = 20; // tiempo máximo del modo examen
 const MAX_FALLOS = 2; // 2 fallos o menos = aprobado; 3 o más = suspenso
 
 let timer = null;
-function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
+let clock = null;
+function clearTimer() {
+  if (timer) { clearTimeout(timer); timer = null; }
+  if (clock) { clearInterval(clock); clock = null; }
+}
+function fmtTime(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+// Cuenta atrás del examen: al llegar a 0 se sale del test y queda suspenso
+function startClock(state) {
+  const el = document.getElementById("clock");
+  if (!el || !state.deadline) return;
+  const tick = () => {
+    const rem = state.deadline - Date.now();
+    if (rem <= 0) { state.timeUp = true; showResults(state); return; }
+    el.textContent = `⏱ ${fmtTime(rem)}`;
+    el.classList.toggle("warn", rem <= 60000);
+  };
+  tick();
+  if (!state.timeUp) clock = setInterval(tick, 500);
+}
 
 /* ---------- Almacenamiento ---------- */
 function loadResults() {
@@ -19,6 +42,45 @@ function saveResult(id, aciertos, total) {
     localStorage.setItem(STORE_KEY, JSON.stringify(r));
   } catch (e) { /* sin almacenamiento: no pasa nada */ }
 }
+/* ---------- Fallos pendientes (de todos los tests) ----------
+   Se guarda una marca "test-pregunta" por cada pregunta fallada y aún no corregida. */
+function loadFails() {
+  try { return JSON.parse(localStorage.getItem(FAILS_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveFails(f) {
+  try { localStorage.setItem(FAILS_KEY, JSON.stringify(f)); } catch (e) {}
+}
+function pendingOfTest(f, id) {
+  return Object.keys(f).filter(k => k.startsWith(id + "-")).length;
+}
+// Tras hacer un test normal: lo fallado se apunta, lo acertado se quita
+function updateFailsFromTest(test, answers) {
+  const f = loadFails();
+  test.preguntas.forEach((q, i) => {
+    const k = `${test.id}-${i}`;
+    if (answers[i] === q[4]) delete f[k]; else f[k] = 1;
+  });
+  saveFails(f);
+}
+// Tras un repaso: lo acertado se quita y el "mejor" de cada test se actualiza
+function updateFailsFromRepaso(state) {
+  const f = loadFails();
+  const tocados = new Set();
+  state.test.preguntas.forEach((q, i) => {
+    const [tid, idx] = state.origins[i];
+    tocados.add(tid);
+    if (state.answers[i] === q[4]) delete f[`${tid}-${idx}`];
+  });
+  saveFails(f);
+  try {
+    const r = loadResults();
+    tocados.forEach(tid => {
+      if (r[tid]) r[tid].mejor = Math.max(r[tid].mejor, r[tid].total - pendingOfTest(f, tid));
+    });
+    localStorage.setItem(STORE_KEY, JSON.stringify(r));
+  } catch (e) {}
+}
+
 function getMode() {
   try { return localStorage.getItem(MODE_KEY) === "examen" ? "examen" : "estudio"; } catch (e) { return "estudio"; }
 }
@@ -39,6 +101,7 @@ function showHome() {
   clearTimer();
   const results = loadResults();
   const mode = getMode();
+  const nFails = Object.keys(loadFails()).length;
   let tiles = "";
   for (let id = 1; id <= TOTAL_TESTS; id++) {
     const t = TESTS.find(x => x.id === id);
@@ -66,14 +129,20 @@ function showHome() {
       </button>
       <button class="mode" data-mode="examen" aria-pressed="${mode === "examen"}">
         <strong>Modo examen</strong>
-        <span>Sin pistas. La nota y los fallos los ves al finalizar.</span>
+        <span>Sin pistas y con ${EXAM_MINUTES} minutos. La nota y los fallos los ves al finalizar.</span>
       </button>
     </div>
+    <button class="repaso" id="repaso" ${nFails ? "" : "disabled"}>
+      <strong>Repasar mis fallos</strong>
+      <span>${nFails ? `${nFails} ${nFails === 1 ? "pregunta pendiente" : "preguntas pendientes"} de todos los tests` : "No tienes fallos pendientes"}</span>
+    </button>
     <div class="grid">${tiles}</div>`;
   app.querySelectorAll(".mode").forEach(b => b.addEventListener("click", () => {
     setMode(b.dataset.mode);
     app.querySelectorAll(".mode").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
   }));
+  const rb = document.getElementById("repaso");
+  if (rb) rb.addEventListener("click", startRepaso);
   app.querySelectorAll(".tile[data-id]").forEach(b =>
     b.addEventListener("click", () => startTest(Number(b.dataset.id))));
   window.scrollTo(0, 0);
@@ -83,7 +152,21 @@ function startTest(id) {
   clearTimer();
   const test = TESTS.find(t => t.id === id);
   const state = { test, i: 0, answers: [], mode: getMode() };
+  if (state.mode === "examen") state.deadline = Date.now() + EXAM_MINUTES * 60000;
   showQuestion(state);
+  window.scrollTo(0, 0);
+}
+
+function startRepaso() {
+  clearTimer();
+  const f = loadFails();
+  const preguntas = [], origins = [];
+  TESTS.forEach(t => t.preguntas.forEach((q, i) => {
+    if (f[`${t.id}-${i}`]) { preguntas.push(q); origins.push([t.id, i]); }
+  }));
+  if (!preguntas.length) { showHome(); return; }
+  const test = { id: "repaso", titulo: "Repaso de fallos", preguntas };
+  showQuestion({ test, i: 0, answers: [], mode: getMode(), origins });
   window.scrollTo(0, 0);
 }
 
@@ -142,7 +225,7 @@ function pillInfo(state) {
     return { text: `Contestadas ${state.answers.filter(a => a != null).length}/${total}`, warn: false };
   }
   const f = countFallos(state);
-  return { text: `Fallos: ${f}`, warn: f > MAX_FALLOS };
+  return { text: `Fallos: ${f}`, warn: !state.origins && f > MAX_FALLOS };
 }
 function updatePill(state) {
   const pill = app.querySelector(".pill.live");
@@ -192,10 +275,12 @@ function showQuestion(state) {
     <div class="meta">
       <span><span class="pill">${exam ? "Examen" : "Estudio"}</span> ${test.titulo}</span>
       <span class="pill live ${pill.warn ? "warn" : ""}">${pill.text}</span>
+      ${state.deadline ? `<span class="pill clock" id="clock"></span>` : ""}
       <span>Pregunta ${i + 1} de ${total}</span>
     </div>
     <div class="progress"><i style="width:${(done / total) * 100}%"></i></div>
     <div class="card">
+      ${state.origins ? `<p class="origin">Test ${state.origins[i][0]} · pregunta ${state.origins[i][1] + 1}</p>` : ""}
       <p class="question">${q[0]}</p>
       <div id="q-img"></div>
       <div class="opts">
@@ -212,8 +297,10 @@ function showQuestion(state) {
     </div>
     ${navHtml}`;
 
+  startClock(state);
   const buttons = app.querySelectorAll(".opt");
-  attachImage(test.id, i, q[5]);
+  if (state.origins) attachImage(state.origins[i][0], state.origins[i][1], q[5]);
+  else attachImage(test.id, i, q[5]);
 
   // Navegación libre (igual en los dos modos)
   document.getElementById("prev").addEventListener("click", () => goTo(state, i - 1));
@@ -285,8 +372,12 @@ function showResults(state) {
   const fallos = [];
   test.preguntas.forEach((q, i) => { if (answers[i] !== q[4]) fallos.push(i); });
   const aciertos = total - fallos.length;
-  saveResult(test.id, aciertos, total);
-  const aprobado = fallos.length <= MAX_FALLOS;
+  if (state.origins) { showRepasoResults(state, fallos); return; }
+  const timeUp = !!state.timeUp;
+  // Si se acaba el tiempo, el resultado cuenta como suspenso
+  saveResult(test.id, timeUp ? Math.min(aciertos, total - MAX_FALLOS - 1) : aciertos, total);
+  updateFailsFromTest(test, answers);
+  const aprobado = !timeUp && fallos.length <= MAX_FALLOS;
   const nota = ((aciertos / total) * 10).toFixed(1).replace(".", ",");
   const review = fallos.map(i => {
     const q = test.preguntas[i];
@@ -298,10 +389,10 @@ function showResults(state) {
   }).join("");
   app.innerHTML = `
     <div class="score ${aprobado ? "pass" : "fail"}">
-      <p class="verdict">${aprobado ? "¡APROBADO!" : "SUSPENSO"}</p>
+      <p class="verdict">${aprobado ? "¡APROBADO!" : timeUp ? "TIEMPO AGOTADO · SUSPENSO" : "SUSPENSO"}</p>
       <div class="big">${aciertos} / ${total}</div>
       <p>Nota: ${nota} sobre 10 · Fallos: ${fallos.length}</p>
-      <p class="rule">Se aprueba con ${MAX_FALLOS} fallos o menos.</p>
+      <p class="rule">${timeUp ? `Se acabaron los ${EXAM_MINUTES} minutos del examen. Las preguntas sin contestar cuentan como fallo.` : `Se aprueba con ${MAX_FALLOS} fallos o menos.`}</p>
     </div>
     ${fallos.length ? `<h2>Preguntas falladas</h2>${review}` : "<p><strong>¡Sin ningún fallo!</strong></p>"}
     <div class="actions">
@@ -309,6 +400,38 @@ function showResults(state) {
       <button class="btn ghost" id="back">Volver a los tests</button>
     </div>`;
   document.getElementById("retry").addEventListener("click", () => startTest(test.id));
+  document.getElementById("back").addEventListener("click", showHome);
+  window.scrollTo(0, 0);
+}
+
+function showRepasoResults(state, fallos) {
+  const { test, answers } = state;
+  const total = test.preguntas.length;
+  const corregidos = total - fallos.length;
+  updateFailsFromRepaso(state);
+  const quedan = Object.keys(loadFails()).length;
+  const review = fallos.map(i => {
+    const q = test.preguntas[i];
+    const [tid, idx] = state.origins[i];
+    const tu = answers[i] == null ? "Sin responder" : `${LETTERS[answers[i]]}) ${q[1 + answers[i]]}`;
+    return `<div class="review">
+      <p><strong>Test ${tid} · ${idx + 1}. ${q[0]}</strong></p>
+      <p class="tu">Tu respuesta: ${tu}</p>
+      <p class="ok">Correcta: ${LETTERS[q[4]]}) ${q[1 + q[4]]}</p></div>`;
+  }).join("");
+  app.innerHTML = `
+    <div class="score ${quedan ? "fail" : "pass"}">
+      <p class="verdict">${quedan ? "REPASO TERMINADO" : "¡SIN FALLOS PENDIENTES!"}</p>
+      <div class="big">${corregidos} / ${total}</div>
+      <p>Fallos corregidos: ${corregidos} · Te quedan: ${quedan}</p>
+    </div>
+    ${fallos.length ? `<h2>Siguen pendientes</h2>${review}` : "<p><strong>¡Has corregido todos los fallos!</strong></p>"}
+    <div class="actions">
+      ${quedan ? `<button class="btn" id="retry">Repasar los que quedan</button>` : ""}
+      <button class="btn ghost" id="back">Volver a los tests</button>
+    </div>`;
+  const rt = document.getElementById("retry");
+  if (rt) rt.addEventListener("click", startRepaso);
   document.getElementById("back").addEventListener("click", showHome);
   window.scrollTo(0, 0);
 }

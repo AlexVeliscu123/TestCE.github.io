@@ -328,3 +328,20 @@ main { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1r
   .top { position: static; }
   .splash-badge { font-size: 2rem; }
 }
+
+/* ---------- Repaso de fallos ---------- */
+.repaso {
+  display: flex; flex-direction: column; gap: .25rem; width: 100%; text-align: left;
+  margin-bottom: 1.2rem; padding: 1rem 1.1rem; font: inherit; color: var(--ink);
+  background: var(--surface); border: 2px solid var(--bad); border-radius: var(--radius);
+  box-shadow: var(--shadow); cursor: pointer;
+}
+.repaso strong { font-size: 1.05rem; color: var(--bad); }
+.repaso span { color: var(--muted); font-size: .85rem; }
+.repaso:hover:not(:disabled) { background: var(--bad-bg); }
+.repaso:disabled { opacity: .5; cursor: not-allowed; border-color: var(--line); box-shadow: none; }
+.repaso:disabled strong { color: var(--muted); }
+.origin { margin: 0 0 .4rem; font-size: .8rem; font-weight: 700; color: var(--muted); }
+
+.pill.clock { font-variant-numeric: tabular-nums; }
+.pill.clock.warn { background: var(--bad-bg); color: var(--bad); }
