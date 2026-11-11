@@ -306,7 +306,7 @@ const TESTS = [
       ["Las carreteras convencionales son, en general...", "más inseguras que las autopistas y las autovías.", "igual de seguras que las autopistas y las autovías.", "más seguras que las autopistas y las autovías.", 0],
       ["La mayor parte de los accidentes de tráfico se deben...", "a las condiciones del vehículo.", "a las condiciones de la vía.", "al factor humano.", 2],
       ["Un remolque de MMA superior a 750 kg, ¿cuántas placas de matrícula debe llevar en su trasera?", "Una propia y la del tractor.", "Una.", "Ninguna.", 0],
-      ["¿Es correcta la señalización de la carga que transporta el remolque?", "No.", "Sí.", null, 0],
+      ["¿Es correcta la señalización de la carga que transporta el remolque?", "No.", "Sí.", null, 0, "img/t12-p14.png"],
       ["Un autobús que arrastra un remolque no ligero, ¿puede adelantar por la derecha al vehículo que circula más lento por el carril de la izquierda?", "Sí, porque el carril de la derecha está libre.", "Sí, porque la vía tiene dos carriles para el mismo sentido.", "No.", 2],
       ["Según las estadísticas, ¿cuándo ocurren más accidentes?", "Los fines de semana y festivos, especialmente en las horas de madrugada.", "Durante el día, fuera de las horas de entrada o salida del trabajo.", "Los días laborables, al inicio del día.", 0],
       ["Cuando realice viajes de largo recorrido, ¿cómo puede evitar la fatiga?", "Tomando alguna bebida alcohólica como estimulante.", "La fatiga no puede evitarse, por eso es mejor hacer el viaje de una vez y sin paradas.", "Parando y descansando cada cierto tiempo.", 2],
