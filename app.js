@@ -282,10 +282,12 @@ function showQuestion(state) {
     <div class="card">
       ${state.origins ? `<p class="origin">Test ${state.origins[i][0]} · pregunta ${state.origins[i][1] + 1}</p>` : ""}
       <p class="question">${q[0]}</p>
-      <div id="q-img"></div>
-      <div class="opts">
-        ${[1, 2, 3].map((n, k) => q[n] == null ? "" : `<button class="opt" data-k="${k}">
-          <span class="letter">${LETTERS[k]}</span><span>${q[n]}</span></button>`).join("")}
+      <div class="qbody">
+        <div id="q-img"></div>
+        <div class="opts">
+          ${[1, 2, 3].map((n, k) => q[n] == null ? "" : `<button class="opt" data-k="${k}">
+            <span class="letter">${LETTERS[k]}</span><span>${q[n]}</span></button>`).join("")}
+        </div>
       </div>
       <div id="feedback"></div>
     </div>

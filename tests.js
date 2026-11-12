@@ -561,7 +561,9 @@ const TESTS = [
       ["Los Agentes de la Autoridad podrán inmovilizar un vehículo por exceso en los tiempos de conducción permitidos si supera:", "50%.", "25%.", "20%.", 0],
       ["¿De quién es la obligación de verificar que las placas de matrícula no presentan obstáculos que impidan su lectura e identificación?", "Del titular del vehículo, aunque no sea el conductor.", "Del conductor del vehículo.", "De la inspección técnica de vehículos.", 1],
       ["¿Cuál es el objetivo de la señal de la imagen que, de forma voluntaria, los conductores de vehículos comerciales y pesados pueden incorporar en sus vehículos?", "Mejorar la visibilidad del conductor en los puntos ciegos del vehículo pesado que conduce.", "Reducir el número de conductores de vehículos comerciales y pesados fallecidos en siniestros viales.", "Alertar a los usuarios vulnerables de la existencia de puntos ciegos en los vehículos de mayores dimensiones.", 2],
-      ["El órgano competente en materia de tráfico, ¿podrá poner restricciones a la circulación de conjuntos euro-modulares?", "Sí, en función de las limitaciones de la red de carreteras.", "No.", "Sí, pero solo a los conjuntos euro-modulares cuya MMA supere las 60 toneladas.", 0]
+      ["El órgano competente en materia de tráfico, ¿podrá poner restricciones a la circulación de conjuntos euro-modulares?", "Sí, en función de las limitaciones de la red de carreteras.", "No.", "Sí, pero solo a los conjuntos euro-modulares cuya MMA supere las 60 toneladas.", 0],
+      ["¿Cuál es la masa máxima autorizada para un conjunto de vehículos en configuración euro-modular para poder circular?", "44 toneladas.", "60 toneladas.", "72 toneladas.", 2],
+      ["Si su vehículo articulado dispone de 5 ejes, como norma general, ¿qué masa máxima no podrá rebasar el conjunto para que sea autorizada su circulación?", "44 toneladas.", "36 toneladas.", "40 toneladas.", 0]
     ]
   }
 ];
