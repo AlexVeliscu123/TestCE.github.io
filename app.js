@@ -93,7 +93,7 @@ function toggleTheme() {
   html.setAttribute("data-theme", next);
   try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", next === "dark" ? "#12385f" : "#0a4c8c");
+  if (meta) meta.setAttribute("content", next === "dark" ? "#0a0d10" : "#14181d");
 }
 
 /* ---------- Inicio ---------- */
@@ -114,9 +114,9 @@ function showHome() {
         info = `Mejor: ${fallos} ${fallos === 1 ? "fallo" : "fallos"}`;
       }
       tiles += `<button class="tile ${cls}" data-id="${id}" style="--i:${id}">
-        <strong>Test ${id}</strong><small>${info}</small></button>`;
+        <strong><span class="tl">Test</span>${id}</strong><small>${info}</small></button>`;
     } else {
-      tiles += `<button class="tile" disabled style="--i:${id}"><strong>Test ${id}</strong><small>Próximamente</small></button>`;
+      tiles += `<button class="tile" disabled style="--i:${id}"><strong><span class="tl">Test</span>${id}</strong><small>Próximamente</small></button>`;
     }
   }
   app.innerHTML = `

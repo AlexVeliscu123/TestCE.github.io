@@ -355,3 +355,134 @@ main { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1r
   .qbody:has(.q-img) #q-img { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: .8rem; display: grid; place-items: center; }
   .qbody:has(.q-img) #q-img .q-img { max-width: 100%; max-height: 340px; margin: 0; }
 }
+
+/* =====================================================
+   DISEÑO V2 · asfalto, señales y línea de carretera
+   ===================================================== */
+:root {
+  --asphalt: #14181d;
+  --bg: #eef0f1;
+  --surface: #ffffff;
+  --surface-2: #f4f6f7;
+  --ink: #161b20;
+  --muted: #5a6670;
+  --line: #d6dbdf;
+  --sign: #0b57a4;
+  --sign-soft: #e2edf9;
+  --ok: #14803c;
+  --ok-bg: #e2f4e8;
+  --bad: #c62828;
+  --bad-bg: #fbe7e6;
+  --stripe: #ffc400;
+  --display: "Barlow Condensed", "Atkinson Hyperlegible", system-ui, sans-serif;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(20, 24, 29, .06), 0 8px 24px -8px rgba(20, 24, 29, .14);
+}
+:root[data-theme="dark"] {
+  --asphalt: #0a0d10;
+  --bg: #0e1215;
+  --surface: #171c21;
+  --surface-2: #1e252b;
+  --ink: #eaeff3;
+  --muted: #9aa6b0;
+  --line: #2b343c;
+  --sign: #6db0f0;
+  --sign-ink: #07121c;
+  --sign-soft: #14283b;
+  --ok: #5fcb84;
+  --ok-bg: #12301f;
+  --bad: #ff8a80;
+  --bad-bg: #371a18;
+  --stripe: #ffc400;
+}
+
+/* Cabecera: asfalto con línea discontinua amarilla */
+.top, :root[data-theme="dark"] .top { background: var(--asphalt); border-bottom: 0; }
+.top::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+  background: repeating-linear-gradient(90deg, var(--stripe) 0 26px, transparent 26px 46px);
+}
+.top-inner { padding-top: .8rem; padding-bottom: .95rem; }
+.brand { font-family: var(--display); font-size: 1.4rem; letter-spacing: .02em; }
+.brand-badge { background: var(--stripe); color: var(--asphalt); border-radius: 6px; padding: .05rem .55rem; font-size: 1.2rem; }
+.icon-btn { border-radius: 12px; }
+
+/* Títulos */
+h1, h2 { font-family: var(--display); letter-spacing: .005em; }
+h1 { font-size: 2.9rem; line-height: 1; margin: .3rem 0 .5rem; }
+h2 { font-size: 1.7rem; }
+.lead { font-size: 1rem; margin-bottom: 1.5rem; }
+
+/* Modos */
+.mode { border-radius: 14px; padding: 1rem 1.1rem; }
+.mode strong { font-family: var(--display); font-size: 1.35rem; letter-spacing: .01em; }
+.mode[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--sign-soft), var(--shadow); }
+
+/* Repaso de fallos */
+.repaso { border-width: 2px; border-radius: 14px; }
+.repaso strong { font-family: var(--display); font-size: 1.35rem; }
+
+/* Tests: cada uno como un hito con su número grande */
+.grid { gap: .9rem; }
+.tile { border-radius: 14px; padding: 1.1rem 1rem .9rem; min-height: 7.2rem; justify-content: flex-end; gap: .1rem; }
+.tile::before { left: 0; right: 0; top: 0; bottom: auto; width: auto; height: 6px; background: var(--line); }
+.tile strong { padding: 0; font-family: var(--display); font-size: 2.8rem; line-height: .95; font-weight: 700; letter-spacing: .01em; }
+.tile .tl { display: block; font-size: 1.05rem; font-weight: 600; color: var(--muted); line-height: 1.1; margin-bottom: .1rem; }
+.tile small { padding: 0; margin-top: .35rem; }
+.tile:hover:not(:disabled) { border-color: var(--sign); box-shadow: 0 10px 26px -10px rgba(11, 87, 164, .4); }
+
+/* Pregunta */
+.meta { font-size: .92rem; }
+.pill { border-radius: 6px; }
+.progress {
+  position: relative; height: 12px; background: var(--asphalt); border-radius: 7px; margin: .7rem 0 1.3rem;
+}
+.progress i { background: var(--stripe); border-radius: 7px; position: relative; z-index: 1; }
+.progress::after {
+  content: ""; position: absolute; left: 6px; right: 6px; top: calc(50% - 1px); height: 2px; z-index: 2;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .55) 0 10px, transparent 10px 20px);
+}
+.card { border: 0; border-radius: 20px; padding: 1.5rem 1.4rem 1.3rem; }
+.question { font-size: 1.28rem; line-height: 1.38; margin-bottom: 1.2rem; }
+
+.opts { gap: .7rem; }
+.opt { border-radius: 14px; padding: .85rem .95rem; gap: .9rem; align-items: center; background: var(--surface); }
+.opt .letter {
+  width: 2.2rem; height: 2.2rem; border-radius: 8px; background: var(--sign-soft); color: var(--sign);
+  border: 0; font-family: var(--display); font-size: 1.35rem;
+}
+.opt:hover:not(:disabled) { background: var(--sign-soft); }
+.opt.selected .letter, .opt.correct .letter, .opt.wrong .letter { color: #fff; }
+.opt.selected .letter { background: var(--sign); }
+:root[data-theme="dark"] .opt.selected .letter { color: var(--sign-ink); }
+.opt.correct .letter { background: var(--ok); }
+.opt.wrong .letter { background: var(--bad); }
+.opt.correct, .opt.wrong { border-width: 2px; }
+:root[data-theme="dark"] .opt.correct .letter, :root[data-theme="dark"] .opt.wrong .letter { color: #08130c; }
+
+.qbody:has(.q-img) #q-img { border-radius: 14px; }
+.feedback { font-family: var(--display); font-size: 1.35rem; }
+
+/* Botones */
+.btn { border-radius: 12px; font-weight: 700; padding: .7rem 1.4rem; }
+.btn.ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
+.btn.ghost:hover:not(:disabled) { border-color: var(--sign); color: var(--sign); filter: none; }
+.nav button { border-radius: 8px; font-family: var(--display); font-size: 1.05rem; }
+
+/* Resultados */
+.score { border-radius: 22px; padding: 1.8rem 1.4rem; }
+.verdict { font-family: var(--display); font-size: 2.4rem; letter-spacing: .03em; }
+.score .big { font-family: var(--display); font-size: 5rem; line-height: 1; }
+.review { border-radius: 14px; border-left-width: 6px; }
+
+/* Bienvenida */
+.splash, :root[data-theme="dark"] .splash { background: var(--asphalt); }
+.splash-badge { background: var(--stripe); color: var(--asphalt); border: 5px solid #fff; font-family: var(--display); font-size: 3.6rem; }
+.splash-title { font-family: var(--display); font-size: 1.5rem; }
+
+@media (max-width: 520px) {
+  h1 { font-size: 2.4rem; }
+  .score .big { font-size: 4rem; }
+  .verdict { font-size: 2rem; }
+  .card { padding: 1.2rem 1rem 1.1rem; }
+}
