@@ -4,6 +4,11 @@ const STORE_KEY = "tests-ce-resultados";
 const THEME_KEY = "tests-ce-tema";
 const MODE_KEY = "tests-ce-modo";
 const FAILS_KEY = "tests-ce-fallos";
+const HIST_KEY = "tests-ce-historial";
+const EXAM_QUESTIONS = 20; // preguntas del examen real
+const HIST_MAX = 60;       // intentos que se guardan
+const HIST_WINDOW = 10;    // intentos recientes que cuentan para la probabilidad
+const HIST_MIN = 3;        // intentos mínimos para dar una estimación
 const EXAM_MINUTES = 20; // tiempo máximo del modo examen
 const MAX_FALLOS = 2; // 2 fallos o menos = aprobado; 3 o más = suspenso
 
@@ -42,6 +47,73 @@ function saveResult(id, aciertos, total) {
     localStorage.setItem(STORE_KEY, JSON.stringify(r));
   } catch (e) { /* sin almacenamiento: no pasa nada */ }
 }
+/* ---------- Historial de intentos y probabilidad de aprobar ---------- */
+function loadHist() {
+  try { const h = JSON.parse(localStorage.getItem(HIST_KEY)); return Array.isArray(h) ? h : []; } catch (e) { return []; }
+}
+function saveAttempt(id, fallos, total) {
+  try {
+    const h = loadHist();
+    h.push({ id, fallos, total });
+    localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-HIST_MAX)));
+  } catch (e) {}
+}
+// P(X <= MAX_FALLOS) con X ~ Binomial(EXAM_QUESTIONS, p)
+function probAprobar(p) {
+  const n = EXAM_QUESTIONS;
+  let sum = 0;
+  for (let k = 0; k <= MAX_FALLOS; k++) {
+    let c = 1;
+    for (let j = 1; j <= k; j++) c = c * (n - k + j) / j;
+    sum += c * Math.pow(p, k) * Math.pow(1 - p, n - k);
+  }
+  return sum;
+}
+const ARC = Math.PI * 80; // longitud del arco del velocímetro
+function gaugeSvg(pct) {
+  const len = (pct / 100) * ARC;
+  return `<svg class="speedo" viewBox="0 0 200 118" role="img" aria-label="${pct === null ? "Sin datos todavía" : pct + "% de probabilidad"}">
+    <path class="sp-track" d="M20 100 A80 80 0 0 1 180 100" pathLength="${ARC}"/>
+    ${pct === null ? "" : `<path class="sp-val" d="M20 100 A80 80 0 0 1 180 100" stroke-dasharray="${len} ${ARC}"/>`}
+    <text x="100" y="92" class="sp-num" text-anchor="middle">${pct === null ? "–" : pct + "%"}</text>
+    <text x="20" y="116" class="sp-end" text-anchor="middle">0</text>
+    <text x="180" y="116" class="sp-end" text-anchor="middle">100</text>
+  </svg>`;
+}
+function statsHtml() {
+  const h = loadHist();
+  if (h.length < HIST_MIN) {
+    const faltan = HIST_MIN - h.length;
+    return `<section class="hero" aria-label="Tu progreso">
+      ${gaugeSvg(null)}
+      <div class="hero-txt">
+        <h2>Tu probabilidad de aprobar</h2>
+        <p>${h.length ? `Llevas ${h.length} ${h.length === 1 ? "test" : "tests"}. ` : ""}Haz ${faltan} ${faltan === 1 ? "test más" : "tests más"} y te diré cuántas opciones tienes de aprobar el examen.</p>
+      </div>
+    </section>`;
+  }
+  const rec = h.slice(-HIST_WINDOW);
+  const fal = rec.reduce((a, x) => a + x.fallos, 0);
+  const tot = rec.reduce((a, x) => a + x.total, 0);
+  const media = fal / rec.length;
+  const pct = Math.min(99, Math.max(1, Math.round(probAprobar(fal / tot) * 100)));
+  const cls = pct >= 75 ? "good" : pct >= 40 ? "mid" : "low";
+  const aprob = rec.filter(x => x.fallos <= MAX_FALLOS).length;
+  const bars = rec.map(x => {
+    const hgt = Math.min(100, 16 + x.fallos * 12);
+    return `<i class="${x.fallos <= MAX_FALLOS ? "ok" : "bad"}" style="height:${hgt}%" title="Test ${x.id}: ${x.fallos} ${x.fallos === 1 ? "fallo" : "fallos"}"><b>${x.fallos}</b></i>`;
+  }).join("");
+  return `<section class="hero ${cls}" aria-label="Tu progreso">
+    ${gaugeSvg(pct)}
+    <div class="hero-txt">
+      <h2>Tu probabilidad de aprobar</h2>
+      <p>Media de ${media.toFixed(1).replace(".", ",")} fallos por test. Has aprobado ${aprob} de tus últimos ${rec.length}.</p>
+      <div class="bars" role="img" aria-label="Fallos de tus últimos tests">${bars}</div>
+      <small>Fallos por test, del más antiguo al más reciente. Estimación orientativa para un examen de ${EXAM_QUESTIONS} preguntas.</small>
+    </div>
+  </section>`;
+}
+
 /* ---------- Fallos pendientes (de todos los tests) ----------
    Se guarda una marca "test-pregunta" por cada pregunta fallada y aún no corregida. */
 function loadFails() {
@@ -79,6 +151,30 @@ function updateFailsFromRepaso(state) {
     });
     localStorage.setItem(STORE_KEY, JSON.stringify(r));
   } catch (e) {}
+}
+
+const MODE_DESC = {
+  estudio: "Ves al instante si has acertado y pasa solo a la siguiente.",
+  examen: `Sin pistas y con ${EXAM_MINUTES} minutos. La nota y los fallos los ves al finalizar.`
+};
+/* ---------- Explicaciones (librito) ---------- */
+const BOOK_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4H10a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H3.5A1.5 1.5 0 0 1 2 16.5z"/><path d="M22 5.5A1.5 1.5 0 0 0 20.5 4H14a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>`;
+function getExpl(testId, idx) {
+  return (typeof EXPLICACIONES !== "undefined" && EXPLICACIONES[`${testId}-${idx + 1}`]) || "";
+}
+// Librito + panel desplegable para la pantalla de resultados
+function bookBlock(id, text) {
+  if (!text) return "";
+  return `<button class="book inline" type="button" data-book="${id}" aria-expanded="false" aria-label="Ver explicación" title="Ver explicación">${BOOK_SVG}<span>Explicación</span></button>
+    <div class="explain" id="${id}" hidden><p>${text}</p></div>`;
+}
+function bindBooks() {
+  app.querySelectorAll("[data-book]").forEach(b => b.addEventListener("click", () => {
+    const box = document.getElementById(b.dataset.book);
+    const open = box.hidden;
+    box.hidden = !open;
+    b.setAttribute("aria-expanded", String(open));
+  }));
 }
 
 function getMode() {
@@ -122,25 +218,30 @@ function showHome() {
   app.innerHTML = `
     <h1>Elige un test</h1>
     <p class="lead">Aprobado con ${MAX_FALLOS} fallos o menos. Con ${MAX_FALLOS + 1} o más, suspenso.</p>
-    <div class="modes" role="group" aria-label="Modo de test">
-      <button class="mode" data-mode="estudio" aria-pressed="${mode === "estudio"}">
-        <strong>Modo estudio</strong>
-        <span>Ves al instante si has acertado y pasa solo a la siguiente.</span>
+    ${statsHtml()}
+    <div class="seg" role="group" aria-label="Modo de test">
+      <button class="seg-btn" data-mode="estudio" aria-pressed="${mode === "estudio"}">Modo estudio</button>
+      <button class="seg-btn" data-mode="examen" aria-pressed="${mode === "examen"}">Modo examen</button>
+    </div>
+    <p class="seg-desc" id="mode-desc">${MODE_DESC[mode]}</p>
+    <div class="quick">
+      <button class="quick-btn rand" id="random">
+        <span class="qi" aria-hidden="true">🎲</span>
+        <span class="qt"><strong>Test aleatorio</strong><small>Uno al azar, en modo examen</small></span>
       </button>
-      <button class="mode" data-mode="examen" aria-pressed="${mode === "examen"}">
-        <strong>Modo examen</strong>
-        <span>Sin pistas y con ${EXAM_MINUTES} minutos. La nota y los fallos los ves al finalizar.</span>
+      <button class="quick-btn fails" id="repaso" ${nFails ? "" : "disabled"}>
+        <span class="qi" aria-hidden="true">${nFails}</span>
+        <span class="qt"><strong>Repasar mis fallos</strong><small>${nFails ? (nFails === 1 ? "1 pregunta pendiente" : `${nFails} preguntas pendientes`) : "Sin fallos pendientes"}</small></span>
       </button>
     </div>
-    <button class="repaso" id="repaso" ${nFails ? "" : "disabled"}>
-      <strong>Repasar mis fallos</strong>
-      <span>${nFails ? `${nFails} ${nFails === 1 ? "pregunta pendiente" : "preguntas pendientes"} de todos los tests` : "No tienes fallos pendientes"}</span>
-    </button>
+    <h2 class="grid-title">Todos los tests</h2>
     <div class="grid">${tiles}</div>`;
-  app.querySelectorAll(".mode").forEach(b => b.addEventListener("click", () => {
+  app.querySelectorAll(".seg-btn").forEach(b => b.addEventListener("click", () => {
     setMode(b.dataset.mode);
-    app.querySelectorAll(".mode").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    app.querySelectorAll(".seg-btn").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    document.getElementById("mode-desc").textContent = MODE_DESC[b.dataset.mode];
   }));
+  document.getElementById("random").addEventListener("click", startRandom);
   const rb = document.getElementById("repaso");
   if (rb) rb.addEventListener("click", startRepaso);
   app.querySelectorAll(".tile[data-id]").forEach(b =>
@@ -148,13 +249,20 @@ function showHome() {
   window.scrollTo(0, 0);
 }
 
-function startTest(id) {
+function startTest(id, forceMode) {
   clearTimer();
   const test = TESTS.find(t => t.id === id);
-  const state = { test, i: 0, answers: [], mode: getMode() };
+  const state = { test, i: 0, answers: [], mode: forceMode || getMode() };
   if (state.mode === "examen") state.deadline = Date.now() + EXAM_MINUTES * 60000;
   showQuestion(state);
   window.scrollTo(0, 0);
+}
+
+// Test aleatorio: elige uno cualquiera y lo abre siempre en modo examen
+function startRandom() {
+  if (!TESTS.length) return;
+  const t = TESTS[Math.floor(Math.random() * TESTS.length)];
+  startTest(t.id, "examen");
 }
 
 function startRepaso() {
@@ -257,6 +365,8 @@ function showQuestion(state) {
   const q = test.preguntas[i];
   const total = test.preguntas.length;
   const exam = mode === "examen";
+  const [exT, exI] = state.origins ? state.origins[i] : [test.id, i];
+  const ex = exam ? "" : getExpl(exT, exI);
   const pill = pillInfo(state);
   const done = state.answers.filter(a => a != null).length;
 
@@ -279,7 +389,8 @@ function showQuestion(state) {
       <span>Pregunta ${i + 1} de ${total}</span>
     </div>
     <div class="progress"><i style="width:${(done / total) * 100}%"></i></div>
-    <div class="card">
+    <div class="card ${ex ? "has-book" : ""}">
+      ${ex ? `<button class="book" id="book" type="button" hidden aria-expanded="false" aria-label="Ver explicación" title="Ver explicación">${BOOK_SVG}</button>` : ""}
       ${state.origins ? `<p class="origin">Test ${state.origins[i][0]} · pregunta ${state.origins[i][1] + 1}</p>` : ""}
       <p class="question">${q[0]}</p>
       <div class="qbody">
@@ -290,6 +401,7 @@ function showQuestion(state) {
         </div>
       </div>
       <div id="feedback"></div>
+      ${ex ? `<div class="explain" id="explain" hidden><p>${ex}</p><button class="btn" id="explain-next" type="button">Continuar</button></div>` : ""}
     </div>
     </div>
     <div class="actions">
@@ -312,6 +424,21 @@ function showQuestion(state) {
     b.addEventListener("click", () => goTo(state, Number(b.dataset.go))));
 
   const prevAnswer = state.answers[i];
+
+  const bookBtn = document.getElementById("book");
+  if (bookBtn) {
+    const box = document.getElementById("explain");
+    bookBtn.addEventListener("click", () => {
+      const open = box.hidden;
+      box.hidden = !open;
+      bookBtn.setAttribute("aria-expanded", String(open));
+      if (open) clearTimer(); // mientras lees, no pasa solo a la siguiente
+    });
+    document.getElementById("explain-next").addEventListener("click", () => {
+      const n = nextPending(state, i);
+      if (n < 0) showResults(state); else goTo(state, n);
+    });
+  }
 
   if (exam) {
     // Examen: sin pistas; la respuesta se puede cambiar hasta finalizar
@@ -344,6 +471,8 @@ function showQuestion(state) {
       if (Number(x.dataset.k) === q[4]) x.classList.add("correct");
     });
     if (!ok) buttons[k].classList.add("wrong");
+    const bk = document.getElementById("book");
+    if (bk) bk.hidden = false;
     document.getElementById("feedback").innerHTML = ok
       ? `<p class="feedback ok">¡Correcto!</p>`
       : `<p class="feedback ko">Incorrecto. La respuesta correcta es la ${LETTERS[q[4]]}).</p>`;
@@ -362,7 +491,7 @@ function showQuestion(state) {
     timer = setTimeout(() => {
       const n = nextPending(state, i);
       if (n < 0) showResults(state); else goTo(state, n);
-    }, ok ? 1200 : 2800);
+    }, ex ? (ok ? 2600 : 3600) : (ok ? 1200 : 2800));
   }));
 }
 
@@ -378,6 +507,7 @@ function showResults(state) {
   const timeUp = !!state.timeUp;
   // Si se acaba el tiempo, el resultado cuenta como suspenso
   saveResult(test.id, timeUp ? Math.min(aciertos, total - MAX_FALLOS - 1) : aciertos, total);
+  saveAttempt(test.id, fallos.length, total);
   updateFailsFromTest(test, answers);
   const aprobado = !timeUp && fallos.length <= MAX_FALLOS;
   const nota = ((aciertos / total) * 10).toFixed(1).replace(".", ",");
@@ -387,7 +517,18 @@ function showResults(state) {
     return `<div class="review">
       <p><strong>${i + 1}. ${q[0]}</strong></p>
       <p class="tu">Tu respuesta: ${tu}</p>
-      <p class="ok">Correcta: ${LETTERS[q[4]]}) ${q[1 + q[4]]}</p></div>`;
+      <p class="ok">Correcta: ${LETTERS[q[4]]}) ${q[1 + q[4]]}</p>
+      ${bookBlock(`ex-${i}`, getExpl(test.id, i))}</div>`;
+  }).join("");
+  // Todas las preguntas con su explicación (para repasar también las acertadas)
+  const todas = test.preguntas.map((q, i) => {
+    const ex = getExpl(test.id, i);
+    if (!ex) return "";
+    const ok = answers[i] === q[4];
+    return `<div class="review all ${ok ? "good" : ""}">
+      <p><strong>${i + 1}. ${q[0]}</strong></p>
+      <p class="ok">Correcta: ${LETTERS[q[4]]}) ${q[1 + q[4]]}</p>
+      <div class="explain open"><p>${ex}</p></div></div>`;
   }).join("");
   app.innerHTML = `
     <div class="score ${aprobado ? "pass" : "fail"}">
@@ -397,10 +538,12 @@ function showResults(state) {
       <p class="rule">${timeUp ? `Se acabaron los ${EXAM_MINUTES} minutos del examen. Las preguntas sin contestar cuentan como fallo.` : `Se aprueba con ${MAX_FALLOS} fallos o menos.`}</p>
     </div>
     ${fallos.length ? `<h2>Preguntas falladas</h2>${review}` : "<p><strong>¡Sin ningún fallo!</strong></p>"}
+    ${todas ? `<details class="all-details"><summary>Ver todas las preguntas con su explicación</summary>${todas}</details>` : ""}
     <div class="actions">
       <button class="btn" id="retry">Repetir test</button>
       <button class="btn ghost" id="back">Volver a los tests</button>
     </div>`;
+  bindBooks();
   document.getElementById("retry").addEventListener("click", () => startTest(test.id));
   document.getElementById("back").addEventListener("click", showHome);
   window.scrollTo(0, 0);
@@ -419,7 +562,8 @@ function showRepasoResults(state, fallos) {
     return `<div class="review">
       <p><strong>Test ${tid} · ${idx + 1}. ${q[0]}</strong></p>
       <p class="tu">Tu respuesta: ${tu}</p>
-      <p class="ok">Correcta: ${LETTERS[q[4]]}) ${q[1 + q[4]]}</p></div>`;
+      <p class="ok">Correcta: ${LETTERS[q[4]]}) ${q[1 + q[4]]}</p>
+      ${bookBlock(`ex-${i}`, getExpl(tid, idx))}</div>`;
   }).join("");
   app.innerHTML = `
     <div class="score ${quedan ? "fail" : "pass"}">
@@ -432,6 +576,7 @@ function showRepasoResults(state, fallos) {
       ${quedan ? `<button class="btn" id="retry">Repasar los que quedan</button>` : ""}
       <button class="btn ghost" id="back">Volver a los tests</button>
     </div>`;
+  bindBooks();
   const rt = document.getElementById("retry");
   if (rt) rt.addEventListener("click", startRepaso);
   document.getElementById("back").addEventListener("click", showHome);
