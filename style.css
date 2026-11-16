@@ -633,3 +633,95 @@ h2 { font-size: 1.7rem; }
 .review.all { border-left-color: var(--line); }
 .review.all.good { border-left-color: var(--ok); }
 .review.all .explain { margin-top: .5rem; }
+
+/* ---------- Botón para salir de un test ---------- */
+.back-btn {
+  display: inline-flex; align-items: center; gap: .3rem;
+  margin: 0 0 .7rem; padding: .45rem .9rem .45rem .6rem;
+  background: var(--surface); color: var(--ink);
+  border: 2px solid var(--line); border-radius: 12px;
+  font-weight: 700; font-size: .95rem; cursor: pointer;
+}
+.back-btn:hover { border-color: var(--sign); color: var(--sign); }
+.back-btn:active { transform: scale(.97); }
+@media (max-width: 600px) { .back-btn { min-height: 44px; } }
+
+/* =====================================================
+   DISEÑO V4 · logo de carretera, bienvenida suave y look más limpio
+   ===================================================== */
+.brand { gap: .65rem; }
+.brand-logo { width: 38px; height: 38px; flex: none; filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+.top::after { opacity: .55; }
+body { background:
+  radial-gradient(900px 380px at 85% -80px, color-mix(in srgb, var(--stripe) 16%, transparent), transparent 70%), var(--bg); }
+
+/* Bienvenida: sale con un fundido, sin esperas largas */
+.splash, :root[data-theme="dark"] .splash { background: var(--asphalt); gap: 1.1rem; animation: splash-out .45s ease 1.1s forwards; }
+.splash-logo { width: 96px; height: 96px; filter: drop-shadow(0 12px 30px rgba(255,196,0,.28)); animation: logo-in .5s cubic-bezier(.2,.9,.3,1) both; }
+.splash-logo .d1, .splash-logo .d2, .splash-logo .d3 { animation: dash-in .25s ease both; }
+.splash-logo .d3 { animation-delay: .3s; } .splash-logo .d2 { animation-delay: .45s; } .splash-logo .d1 { animation-delay: .6s; }
+.splash-title { font-size: 1.35rem; letter-spacing: .16em; animation: splash-fade .5s ease .45s both; }
+.splash-road { width: min(200px, 55vw); height: 4px; }
+.splash-road i { width: 100%; transform-origin: left; animation: road-fill .85s cubic-bezier(.5,0,.2,1) .2s both; }
+@keyframes logo-in { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: none; } }
+@keyframes dash-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes road-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes splash-out { to { opacity: 0; visibility: hidden; } }
+
+/* Entrada del inicio: rápida y sin retrasos de bienvenida */
+.top { animation: none; }
+#app > h1, #app > .lead, #app > .hero, #app > .seg, #app > .seg-desc, #app > .quick, #app > .grid-title { animation: rise .4s ease both; animation-delay: 0s; }
+body .tile, body.ready .tile { animation: rise .35s ease backwards; animation-delay: calc(var(--i, 0) * 18ms); }
+
+/* Inicio más limpio */
+h1 { font-size: 2.6rem; }
+.hero { background: linear-gradient(135deg, #12171c, #1f2933); border-radius: 24px; }
+.seg { border-radius: 16px; }
+.seg-btn[aria-pressed="true"], :root[data-theme="dark"] .seg-btn[aria-pressed="true"] { background: var(--stripe); color: #14181d; }
+.quick-btn { border: 0; border-radius: 16px; }
+.tile { border: 0; border-radius: 16px; padding: 1rem .9rem .8rem; }
+.tile::before { left: auto; top: .8rem; right: .8rem; bottom: auto; width: .6rem; height: .6rem; border-radius: 50%; }
+.tile.pass { background: color-mix(in srgb, var(--ok) 9%, var(--surface)); }
+.tile.fail { background: color-mix(in srgb, var(--bad) 9%, var(--surface)); }
+.tile:hover:not(:disabled) { box-shadow: 0 12px 28px -12px rgba(0,0,0,.35); }
+
+/* Botones: el principal en amarillo carretera */
+.btn { background: var(--stripe); border-color: var(--stripe); color: #14181d; border-radius: 14px; }
+.btn.ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.btn.finish { background: var(--ok); border-color: var(--ok); color: #fff; }
+:root[data-theme="dark"] .btn.finish { color: #08130c; }
+.back-btn { border: 0; background: var(--surface); box-shadow: var(--shadow); border-radius: 14px; }
+.card { border-radius: 22px; }
+.nav button.current { background: var(--stripe); border-color: var(--stripe); color: #14181d; }
+
+/* ---------- Cuadros de test: efecto al pasar el cursor ---------- */
+.tile { transition: transform .28s cubic-bezier(.2,.9,.3,1.3), box-shadow .25s, background .2s, color .2s; }
+.tile strong, .tile small, .tile .tl { transition: color .2s; }
+.tile strong::after {
+  content: "\2192"; position: absolute; right: .8rem; top: .5rem; font-family: var(--display);
+  font-size: 1.4rem; line-height: 1; color: var(--stripe); opacity: 0; transform: translateX(-10px);
+  transition: opacity .2s, transform .28s cubic-bezier(.2,.9,.3,1.3);
+}
+.tile::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+  background: repeating-linear-gradient(90deg, var(--stripe) 0 14px, transparent 14px 26px);
+  transform: scaleX(0); transform-origin: left; transition: transform .35s ease;
+}
+.tile:active:not(:disabled) { transform: scale(.96); }
+@keyframes tile-road { to { background-position: 26px 0; } }
+@media (hover: hover) {
+  .tile:hover:not(:disabled), .tile:focus-visible:not(:disabled) {
+    background: var(--asphalt); border-color: transparent; transform: translateY(-5px) scale(1.03);
+    box-shadow: 0 0 0 2px var(--stripe), 0 16px 30px -12px rgba(0,0,0,.55);
+  }
+  .tile:hover:not(:disabled) strong, .tile:focus-visible:not(:disabled) strong { color: var(--stripe); }
+  .tile:hover:not(:disabled) .tl, .tile:focus-visible:not(:disabled) .tl { color: rgba(255,255,255,.65); }
+  .tile:hover:not(:disabled) small, .tile:focus-visible:not(:disabled) small { color: rgba(255,255,255,.75); }
+  .tile.pass:hover:not(:disabled) small { color: #4fd17f; }
+  .tile.fail:hover:not(:disabled) small { color: #ff8a80; }
+  .tile:hover:not(:disabled)::before, .tile:focus-visible:not(:disabled)::before { opacity: 0; }
+  .tile:hover:not(:disabled) strong::after, .tile:focus-visible:not(:disabled) strong::after { opacity: 1; transform: none; }
+  .tile:hover:not(:disabled)::after, .tile:focus-visible:not(:disabled)::after { transform: scaleX(1); animation: tile-road .7s linear infinite; }
+}
+
+.tile::before { transition: opacity .15s; }

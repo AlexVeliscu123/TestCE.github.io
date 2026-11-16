@@ -14,6 +14,34 @@ const MAX_FALLOS = 2; // 2 fallos o menos = aprobado; 3 o más = suspenso
 
 let timer = null;
 let clock = null;
+let active = null; // test en curso (null si estás en inicio o en resultados)
+
+/* ---------- Salir de un test ---------- */
+// Pide confirmación solo si ya has contestado algo (se perdería el progreso)
+function leaveTest() {
+  if (!active) { showHome(); return; }
+  const hechas = active.answers.filter(a => a != null).length;
+  if (hechas > 0 && !confirm("¿Salir del test? Perderás las respuestas de este intento.")) return;
+  showHome();
+}
+// El botón "atrás" del móvil o del navegador también sale del test en vez de cerrar la web
+let ignorePop = false;
+function markHistory() {
+  try { if (!(history.state && history.state.t)) history.pushState({ t: 1 }, ""); } catch (e) {}
+}
+function dropHistory() {
+  try { if (history.state && history.state.t) { ignorePop = true; history.back(); } } catch (e) {}
+}
+window.addEventListener("popstate", () => {
+  if (ignorePop) { ignorePop = false; return; }
+  if (!active) return;
+  const hechas = active.answers.filter(a => a != null).length;
+  if (hechas > 0 && !confirm("¿Salir del test? Perderás las respuestas de este intento.")) {
+    try { history.pushState({ t: 1 }, ""); } catch (e) {}
+    return;
+  }
+  showHome();
+});
 function clearTimer() {
   if (timer) { clearTimeout(timer); timer = null; }
   if (clock) { clearInterval(clock); clock = null; }
@@ -195,6 +223,8 @@ function toggleTheme() {
 /* ---------- Inicio ---------- */
 function showHome() {
   clearTimer();
+  active = null;
+  dropHistory();
   const results = loadResults();
   const mode = getMode();
   const nFails = Object.keys(loadFails()).length;
@@ -255,6 +285,7 @@ function startTest(id, forceMode) {
   const state = { test, i: 0, answers: [], mode: forceMode || getMode() };
   if (state.mode === "examen") state.deadline = Date.now() + EXAM_MINUTES * 60000;
   showQuestion(state);
+  markHistory();
   window.scrollTo(0, 0);
 }
 
@@ -275,6 +306,7 @@ function startRepaso() {
   if (!preguntas.length) { showHome(); return; }
   const test = { id: "repaso", titulo: "Repaso de fallos", preguntas };
   showQuestion({ test, i: 0, answers: [], mode: getMode(), origins });
+  markHistory();
   window.scrollTo(0, 0);
 }
 
@@ -361,6 +393,7 @@ function updateNav(state) {
 
 function showQuestion(state) {
   clearTimer();
+  active = state;
   const { test, i, mode } = state;
   const q = test.preguntas[i];
   const total = test.preguntas.length;
@@ -382,6 +415,10 @@ function showQuestion(state) {
 
   app.innerHTML = `
     <div class="qwrap ${anim}">
+    <button class="back-btn" id="exit" type="button" aria-label="Salir del test y volver a la lista">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      <span>Salir</span>
+    </button>
     <div class="meta">
       <span><span class="pill">${exam ? "Examen" : "Estudio"}</span> ${test.titulo}</span>
       <span class="pill live ${pill.warn ? "warn" : ""}">${pill.text}</span>
@@ -417,6 +454,7 @@ function showQuestion(state) {
   else attachImage(test.id, i, q[5]);
 
   // Navegación libre (igual en los dos modos)
+  document.getElementById("exit").addEventListener("click", leaveTest);
   document.getElementById("prev").addEventListener("click", () => goTo(state, i - 1));
   document.getElementById("skip").addEventListener("click", () => goTo(state, i + 1));
   document.getElementById("finish").addEventListener("click", () => finishTest(state));
@@ -498,6 +536,8 @@ function showQuestion(state) {
 /* ---------- Resultados ---------- */
 function showResults(state) {
   clearTimer();
+  active = null;
+  dropHistory();
   const { test, answers } = state;
   const total = test.preguntas.length;
   const fallos = [];
@@ -583,7 +623,7 @@ function showRepasoResults(state, fallos) {
   window.scrollTo(0, 0);
 }
 
-document.getElementById("home-link").addEventListener("click", e => { e.preventDefault(); showHome(); });
+document.getElementById("home-link").addEventListener("click", e => { e.preventDefault(); leaveTest(); });
 document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
 showHome();
 
